@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TreeCoin — Server Currency</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg:#080c10;--surface:#0e1318;--surface2:#151c22;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+  --accent:#00e5a0;--accent2:#00b87a;--red:#ff4d6a;
+  --text:#f0f4f8;--muted:#5a6a78;--muted2:#8a9aaa;--gold:#ffd166;
+  --mono:'Space Mono',monospace;--sans:'Syne',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,229,160,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,160,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+body::after{content:'';position:fixed;top:-200px;left:50%;transform:translateX(-50%);width:800px;height:400px;background:radial-gradient(ellipse,rgba(0,229,160,0.06) 0%,transparent 70%);pointer-events:none;z-index:0}
+.page{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:0 24px 80px}
+header{display:flex;align-items:center;justify-content:space-between;padding:28px 0 40px;border-bottom:1px solid var(--border);margin-bottom:40px}
+.logo{display:flex;align-items:center;gap:14px}
+.logo-mark{width:42px;height:42px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:16px;color:#000}
+.logo-text{font-size:22px;font-weight:800;letter-spacing:-0.5px}
+.logo-sub{font-family:var(--mono);font-size:11px;color:var(--muted2);margin-top:1px}
+.header-right{display:flex;align-items:center;gap:16px}
+.live-badge{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--accent);background:rgba(0,229,160,0.08);border:1px solid rgba(0,229,160,0.2);padding:6px 12px;border-radius:6px}
+.live-dot{width:7px;height:7px;background:var(--accent);border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
+.admin-btn{font-family:var(--mono);font-size:11px;color:var(--muted2);background:var(--surface2);border:1px solid var(--border2);padding:6px 14px;border-radius:6px;cursor:pointer;transition:all .2s}
+.admin-btn:hover{color:var(--text);background:var(--surface)}
+.hero{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px}
+.price-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 32px;position:relative;overflow:hidden}
+.price-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),transparent)}
+.price-label{font-family:var(--mono);font-size:11px;color:var(--muted2);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}
+.price-value{font-family:var(--mono);font-size:48px;font-weight:700;color:var(--text);letter-spacing:-2px;line-height:1;margin-bottom:10px}
+.price-change{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:13px;padding:4px 10px;border-radius:6px;font-weight:700}
+.price-change.up{background:rgba(0,229,160,0.12);color:var(--accent)}
+.price-change.down{background:rgba(255,77,106,0.12);color:var(--red)}
+.price-since{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stat-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px 18px}
+.stat-box .lbl{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.stat-box .val{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--text)}
+.stat-box .val.g{color:var(--accent)}.stat-box .val.gold{color:var(--gold)}
+.chart-section{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 28px 20px;margin-bottom:24px;position:relative;overflow:hidden}
+.chart-section::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent)}
+.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.chart-title{font-size:15px;font-weight:700}
+.chart-sub{font-family:var(--mono);font-size:11px;color:var(--muted2);margin-top:2px}
+.chart-wrap{position:relative;height:260px}
+.bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.triggers-card,.owners-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px}
+.card-title{font-size:14px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:8px}
+.card-title .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.trigger-list{display:flex;flex-direction:column;gap:6px}
+.trigger-row{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);font-size:13px}
+.trigger-name{color:var(--muted2)}
+.pct-badge{font-family:var(--mono);font-size:12px;font-weight:700;padding:3px 10px;border-radius:5px;flex-shrink:0}
+.pct-badge.u{background:rgba(0,229,160,0.12);color:var(--accent)}
+.pct-badge.d{background:rgba(255,77,106,0.12);color:var(--red)}
+.owner-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.owner-row:last-child{border-bottom:none}
+.owner-rank{font-family:var(--mono);font-size:11px;color:var(--muted);width:20px}
+.owner-avatar{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;font-weight:700;flex-shrink:0}
+.owner-name{font-size:13px;font-weight:600;flex:1}
+.owner-coins{font-family:var(--mono);font-size:12px;color:var(--muted2)}
+.owner-val{font-family:var(--mono);font-size:12px;color:var(--accent);text-align:right}
+.empty-owners{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:center;padding:30px 0}
+.ledger-section{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;margin-top:24px}
+.ledger-table{width:100%;border-collapse:collapse}
+.ledger-table th{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:left;padding:0 12px 12px;border-bottom:1px solid var(--border)}
+.ledger-table td{font-family:var(--mono);font-size:12px;padding:11px 12px;border-bottom:1px solid var(--border);color:var(--muted2)}
+.ledger-table tr:last-child td{border-bottom:none}
+.ledger-table td.hl{color:var(--text)}
+.ledger-table td.g{color:var(--accent)}
+.ledger-table td.r{color:var(--red)}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:100;display:none;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:20px;padding:32px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto}
+.modal-title{font-size:18px;font-weight:800;margin-bottom:6px}
+.modal-sub{font-family:var(--mono);font-size:11px;color:var(--muted2);margin-bottom:20px}
+.log-layout{display:grid;grid-template-columns:1fr 170px;gap:20px}
+.asp-title{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:12px}
+.asp-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)}
+.asp-row:last-of-type{border-bottom:none}
+.asp-row .lbl{font-family:var(--mono);font-size:11px;color:var(--muted2)}
+.asp-row .val{font-family:var(--mono);font-size:12px;font-weight:700}
+.asp-row .val.g{color:var(--accent)}.asp-row .val.gold{color:var(--gold)}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-family:var(--mono);font-size:10px;color:var(--muted2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
+.form-group select,.form-group input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-family:var(--mono);font-size:13px;color:var(--text);outline:none;transition:border-color .2s}
+.form-group select:focus,.form-group input:focus{border-color:var(--accent)}
+.form-group select option{background:#0e1318}
+.modal-btns{display:flex;gap:10px;margin-top:20px}
+.mbtn{flex:1;padding:10px;border-radius:8px;font-family:var(--mono);font-size:13px;font-weight:700;cursor:pointer;border:1px solid var(--border2);transition:all .15s}
+.mbtn.cancel{background:transparent;color:var(--muted2)}
+.mbtn.cancel:hover{color:var(--text)}
+.mbtn.confirm{background:var(--accent);color:#000;border-color:var(--accent)}
+.mbtn.confirm:hover{background:var(--accent2)}
+.pin-screen{text-align:center;padding:10px 0 20px}
+.pin-screen p{font-family:var(--mono);font-size:12px;color:var(--muted2);margin-bottom:16px}
+.pin-input{width:160px;text-align:center;letter-spacing:8px;font-size:20px;margin:0 auto;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px;font-family:var(--mono);color:var(--text);outline:none}
+.pin-error{font-family:var(--mono);font-size:11px;color:var(--red);margin-top:8px;display:none}
+.toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface2);border:1px solid var(--accent);color:var(--accent);font-family:var(--mono);font-size:12px;padding:10px 20px;border-radius:8px;opacity:0;transition:all .3s;z-index:200;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(max-width:768px){.hero,.bottom-grid{grid-template-columns:1fr}.log-layout{grid-template-columns:1fr}.price-value{font-size:36px}}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header>
+    <div class="logo">
+      <div class="logo-mark" id="hdrMark">TC</div>
+      <div>
+        <div class="logo-text" id="hdrName">TreeCoin</div>
+        <div class="logo-sub" id="hdrTagline">Server Currency · Est. 2025</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+      <button class="admin-btn" onclick="openAdmin()">⌘ Admin</button>
+    </div>
+  </header>
+
+  <div class="hero">
+    <div class="price-card">
+      <div class="price-label">Current Price</div>
+      <div class="price-value" id="priceDisplay">300,000</div>
+      <div id="changeDisplay" class="price-change up">▲ 0.00%</div>
+      <div class="price-since" id="priceSince">Starting price · No events yet</div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-box"><div class="lbl">Coins in circulation</div><div class="val g" id="statCirc">0</div></div>
+      <div class="stat-box"><div class="lbl">Market cap</div><div class="val gold" id="statMcap">0</div></div>
+      <div class="stat-box"><div class="lbl">All-time high</div><div class="val" id="statAth">300,000</div></div>
+      <div class="stat-box"><div class="lbl">Available coins</div><div class="val" id="statAvail">30</div></div>
+    </div>
+  </div>
+
+  <div class="chart-section">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">Price History</div>
+        <div class="chart-sub" id="chartSub">0 events · TreeCoin / Server Cash</div>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+  </div>
+
+  <div class="bottom-grid">
+    <div class="triggers-card">
+      <div class="card-title"><div class="dot" style="background:var(--accent)"></div>Price Triggers</div>
+      <div class="trigger-list" id="triggerList">
+        <div style="font-family:var(--mono);font-size:12px;color:var(--muted);text-align:center;padding:20px 0">No triggers set — add them in Admin → Settings.</div>
+      </div>
+    </div>
+    <div class="owners-card">
+      <div class="card-title"><div class="dot" style="background:var(--gold)"></div>Coin Holders</div>
+      <div id="ownersList"><div class="empty-owners">Loading...</div></div>
+    </div>
+  </div>
+
+  <div class="ledger-section">
+    <div class="card-title" style="margin-bottom:18px"><div class="dot" style="background:var(--muted2)"></div>Event Ledger</div>
+    <table class="ledger-table">
+      <thead><tr><th>#</th><th>Event</th><th>Change</th><th>Price after</th><th>Note</th><th>Time</th></tr></thead>
+      <tbody id="ledgerBody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No events logged yet.</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ADMIN MODAL -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+
+    <!-- PIN -->
+    <div id="pinView">
+      <div class="modal-title">Admin Access</div>
+      <div class="modal-sub">Enter your PIN to continue.</div>
+      <div class="pin-screen">
+        <p>4-digit PIN required</p>
+        <input class="pin-input" type="password" maxlength="4" id="pinInput" placeholder="····" oninput="checkPin()">
+        <div class="pin-error" id="pinError">Wrong PIN. Try again.</div>
+      </div>
+      <div class="modal-btns"><button class="mbtn cancel" onclick="closeAdmin()">Cancel</button></div>
+    </div>
+
+    <!-- MAIN VIEW -->
+    <div id="logView" style="display:none">
+
+      <!-- Tabs -->
+      <div style="display:flex;gap:6px;margin-bottom:20px;background:var(--surface2);border-radius:8px;padding:4px">
+        <button id="tab-log" onclick="switchTab('log')" style="flex:1;padding:7px;font-family:var(--mono);font-size:11px;font-weight:700;border-radius:6px;border:none;cursor:pointer;background:var(--surface);color:var(--text);transition:all .15s">Log Event</button>
+        <button id="tab-cfg" onclick="switchTab('cfg')" style="flex:1;padding:7px;font-family:var(--mono);font-size:11px;font-weight:700;border-radius:6px;border:none;cursor:pointer;background:transparent;color:var(--muted2);transition:all .15s">Settings</button>
+      </div>
+
+      <!-- LOG PANEL -->
+      <div id="panelLog">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px">
+          <div style="background:var(--surface2);border:1px solid rgba(0,229,160,0.2);border-radius:8px;padding:10px 12px">
+            <div style="font-family:var(--mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Your earnings</div>
+            <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--accent)" id="adminEarned">0</div>
+          </div>
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+            <div style="font-family:var(--mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Sold</div>
+            <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--text)" id="adminSold">0</div>
+          </div>
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+            <div style="font-family:var(--mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Goal</div>
+            <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--gold)" id="adminGoal">0%</div>
+          </div>
+        </div>
+
+        <div class="modal-title">Log Event</div>
+        <div class="modal-sub">Record a price event or coin sale.</div>
+
+        <div class="log-layout">
+          <div>
+            <div class="form-group">
+              <label>Event Type</label>
+              <select id="evSelect" onchange="onEvChange()">
+                <option value="sell">💰 Player buys (+4%)</option>
+                <option value="psp">📉 Player sells back (-5%)</option>
+                <option value="p2p">🔁 Player sells to player (-0.1%)</option>
+                <option value="custom">✏️ Custom trigger</option>
+                <option value="codered">🔴 Code Red (silent devalue)</option>
+                <optgroup label="── Saved Triggers ──" id="triggerOptGroup"></optgroup>
+              </select>
+            </div>
+
+            <div id="grpSell">
+              <div class="form-group">
+                <label>Buyer IGN</label>
+                <input type="text" id="buyerInput" placeholder="e.g. Steve123">
+              </div>
+            </div>
+
+            <div id="grpPsp" style="display:none">
+              <div class="form-group">
+                <label>Player IGN (who is selling back)</label>
+                <input type="text" id="pspInput" placeholder="e.g. Steve123">
+              </div>
+            </div>
+
+            <div id="grpP2p" style="display:none">
+              <div class="form-group">
+                <label>Seller IGN</label>
+                <input type="text" id="p2pSeller" placeholder="e.g. Steve123">
+              </div>
+              <div class="form-group">
+                <label>Buyer IGN</label>
+                <input type="text" id="p2pBuyer" placeholder="e.g. Alex456">
+              </div>
+            </div>
+
+            <div id="grpCustom" style="display:none">
+              <div class="form-group">
+                <label>Trigger name</label>
+                <input type="text" id="customLabel" placeholder="e.g. Admin dropped 2M">
+              </div>
+              <div class="form-group">
+                <label>Change</label>
+                <div style="display:flex;gap:8px;align-items:center">
+                  <select id="customDir" style="width:72px"><option value="1">+</option><option value="-1">−</option></select>
+                  <input type="number" id="customPct" placeholder="e.g. 25" min="1" max="99" style="flex:1">
+                  <span style="font-family:var(--mono);font-size:13px;color:var(--muted2)">%</span>
+                </div>
+              </div>
+            </div>
+
+            <div id="grpCodered" style="display:none">
+              <div style="background:rgba(255,77,106,0.08);border:1px solid rgba(255,77,106,0.2);border-radius:8px;padding:12px 14px;margin-bottom:14px">
+                <div style="font-family:var(--mono);font-size:11px;color:var(--red);font-weight:700;margin-bottom:4px">⚠ CODE RED — SILENT DEVALUE</div>
+                <div style="font-family:var(--mono);font-size:11px;color:var(--muted2)">Price drops silently. Nothing logged.</div>
+              </div>
+              <div class="form-group">
+                <label>Devalue by %</label>
+                <div style="display:flex;gap:8px;align-items:center">
+                  <input type="number" id="codeRedPct" placeholder="e.g. 30" min="1" max="99" style="flex:1">
+                  <span style="font-family:var(--mono);font-size:13px;color:var(--muted2)">%</span>
+                </div>
+              </div>
+            </div>
+
+            <div id="grpNote" style="display:none">
+              <div class="form-group">
+                <label>Note (optional)</label>
+                <input type="text" id="noteInput" placeholder="e.g. announced in #general">
+              </div>
+            </div>
+
+            <div class="modal-btns">
+              <button class="mbtn cancel" onclick="closeAdmin()">Cancel</button>
+              <button class="mbtn confirm" id="submitBtn" onclick="submitEvent()">Log Event</button>
+            </div>
+          </div>
+
+          <!-- Sidebar stats -->
+          <div>
+            <div class="asp-title">Private Stats</div>
+            <div class="asp-row"><span class="lbl">Price</span><span class="val" id="aspPrice">—</span></div>
+            <div class="asp-row"><span class="lbl">Sold</span><span class="val g" id="aspSold">—</span></div>
+            <div class="asp-row"><span class="lbl">Available</span><span class="val" id="aspAvail">—</span></div>
+            <div class="asp-row"><span class="lbl">Earnings</span><span class="val g" id="aspEarned">—</span></div>
+            <div class="asp-row"><span class="lbl">Goal</span><span class="val gold" id="aspGoal">—</span></div>
+            <div class="asp-row"><span class="lbl">ATH</span><span class="val" id="aspAth">—</span></div>
+            <div class="asp-row"><span class="lbl">Mkt cap</span><span class="val" id="aspMcap">—</span></div>
+            <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+              <button onclick="confirmWipe()" style="width:100%;padding:9px;font-family:var(--mono);font-size:12px;font-weight:700;background:rgba(255,77,106,0.1);color:var(--red);border:1px solid rgba(255,77,106,0.3);border-radius:8px;cursor:pointer" onmouseover="this.style.background='rgba(255,77,106,0.22)'" onmouseout="this.style.background='rgba(255,77,106,0.1)'">⬛ All Wipe</button>
+            </div>
+          </div>
+        </div>
+      </div><!-- end panelLog -->
+
+      <!-- SETTINGS PANEL -->
+      <div id="panelCfg" style="display:none;max-height:65vh;overflow-y:auto;padding-right:4px">
+        <div class="modal-title">Settings</div>
+        <div class="modal-sub">Changes apply instantly.</div>
+
+        <div style="font-family:var(--mono);font-size:10px;color:var(--muted2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">General</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px">
+          <div class="form-group" style="margin:0"><label>Coin name</label><input id="cfgName" type="text"></div>
+          <div class="form-group" style="margin:0"><label>Logo initials</label><input id="cfgInitials" type="text" maxlength="2"></div>
+          <div class="form-group" style="margin:0"><label>Tagline</label><input id="cfgTagline" type="text"></div>
+          <div class="form-group" style="margin:0"><label>Starting price</label><input id="cfgStartPrice" type="number"></div>
+          <div class="form-group" style="margin:0"><label>Profit goal</label><input id="cfgGoal" type="number"></div>
+          <div class="form-group" style="margin:0"><label>Price floor</label><input id="cfgFloor" type="number"></div>
+        </div>
+        <button class="mbtn confirm" style="width:100%;margin-bottom:24px" onclick="applySettings()">Save general settings</button>
+
+        <div style="border-top:1px solid var(--border);padding-top:20px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--muted2);text-transform:uppercase;letter-spacing:.08em">Price Triggers</div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--muted)">shown publicly · usable in Log Event</div>
+        </div>
+
+        <div id="triggerEditorList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
+
+        <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:14px">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--muted2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Add trigger</div>
+          <div style="display:flex;gap:8px;align-items:flex-end">
+            <div style="flex:1">
+              <label style="display:block;font-family:var(--mono);font-size:10px;color:var(--muted2);margin-bottom:4px">Name</label>
+              <input type="text" id="newTrigName" placeholder="e.g. Giveaway 500k" style="width:100%;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:8px 10px;font-family:var(--mono);font-size:12px;color:var(--text);outline:none">
+            </div>
+            <div style="width:58px">
+              <label style="display:block;font-family:var(--mono);font-size:10px;color:var(--muted2);margin-bottom:4px">+/−</label>
+              <select id="newTrigDir" style="width:100%;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:8px 4px;font-family:var(--mono);font-size:12px;color:var(--text);outline:none">
+                <option value="1">+</option><option value="-1">−</option>
+              </select>
+            </div>
+            <div style="width:64px">
+              <label style="display:block;font-family:var(--mono);font-size:10px;color:var(--muted2);margin-bottom:4px">%</label>
+              <input type="number" id="newTrigPct" placeholder="20" min="1" max="99" style="width:100%;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:8px 10px;font-family:var(--mono);font-size:12px;color:var(--text);outline:none">
+            </div>
+            <button onclick="addTrigger()" style="padding:8px 14px;font-family:var(--mono);font-size:12px;font-weight:700;background:var(--accent);color:#000;border:none;border-radius:8px;cursor:pointer;white-space:nowrap">Add</button>
+          </div>
+        </div>
+      </div><!-- end panelCfg -->
+
+    </div><!-- end logView -->
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  var PIN = ["7","0","2","6"].join("");
+  var TOTAL = 30;
+
+  var CFG = {
+    name: "TreeCoin", initials: "TC",
+    tagline: "Server Currency · Est. 2025",
+    startPrice: 300000, goal: 1500000, floor: 50000
+  };
+
+  var COLORS = [
+    ["#1a3a2a","#00e5a0"],["#2a1a3a","#c084fc"],["#3a2a1a","#ffd166"],
+    ["#1a2a3a","#60a5fa"],["#3a1a1a","#ff6b6b"],["#1a3a3a","#34d399"]
+  ];
+
+  var freshState = function () {
+    return {
+      price: 300000, startPrice: 300000, ath: 300000, earned: 0,
+      owners: [{ name: "CertifiedTree", qty: TOTAL }],
+      ledger: [], priceHistory: [300000], priceLabels: ["Start"], triggers: []
+    };
+  };
+
+  var state;
+  try {
+    var s = localStorage.getItem("treecoin_v3");
+    state = s ? JSON.parse(s) : freshState();
+  } catch (e) { state = freshState(); }
+
+  function save() {
+    try { localStorage.setItem("treecoin_v3", JSON.stringify(state)); } catch (e) {}
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString(); }
+
+  function treeOwner() {
+    return state.owners.find(function (o) { return o.name === "CertifiedTree"; });
+  }
+  function availCoins() { var t = treeOwner(); return t ? t.qty : 0; }
+  function soldCoins() { return TOTAL - availCoins(); }
+
+  /* ── CHART ── */
+  var chart;
+  function initChart() {
+    var ctx = document.getElementById("priceChart").getContext("2d");
+    var g = ctx.createLinearGradient(0, 0, 0, 260);
+    g.addColorStop(0, "rgba(0,229,160,0.18)");
+    g.addColorStop(1, "rgba(0,229,160,0)");
+    chart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: state.priceLabels,
+        datasets: [{
+          data: state.priceHistory,
+          borderColor: "#00e5a0", borderWidth: 2,
+          backgroundColor: g, fill: true, tension: 0.4,
+          pointRadius: state.priceHistory.length < 20 ? 4 : 2,
+          pointBackgroundColor: "#00e5a0", pointBorderColor: "#080c10", pointBorderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { intersect: false, mode: "index" },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: "#0e1318", borderColor: "rgba(255,255,255,0.1)", borderWidth: 1,
+            titleColor: "#5a6a78", bodyColor: "#f0f4f8",
+            titleFont: { family: "'Space Mono',monospace", size: 10 },
+            bodyFont: { family: "'Space Mono',monospace", size: 13 },
+            callbacks: { label: function (c) { return " " + fmt(c.parsed.y) + " SC"; } }
+          }
+        },
+        scales: {
+          x: { grid: { color: "rgba(255,255,255,0.04)" }, ticks: { color: "#5a6a78", font: { family: "'Space Mono',monospace", size: 10 }, maxTicksLimit: 8 }, border: { display: false } },
+          y: { grid: { color: "rgba(255,255,255,0.04)" }, ticks: { color: "#5a6a78", font: { family: "'Space Mono',monospace", size: 10 }, callback: function (v) { return fmt(v); } }, border: { display: false } }
+        }
+      }
+    });
+  }
+
+  function updateChart() {
+    chart.data.labels = state.priceLabels;
+    chart.data.datasets[0].data = state.priceHistory;
+    chart.data.datasets[0].pointRadius = state.priceHistory.length < 20 ? 4 : 2;
+    chart.update("none");
+  }
+
+  /* ── RENDER ── */
+  function render() {
+    document.getElementById("priceDisplay").textContent = fmt(state.price);
+    var pct = (state.price - state.startPrice) / state.startPrice * 100;
+    var cd = document.getElementById("changeDisplay");
+    cd.textContent = (pct >= 0 ? "▲ " : "▼ ") + Math.abs(pct).toFixed(2) + "%";
+    cd.className = "price-change " + (pct >= 0 ? "up" : "down");
+
+    var lastTs = state.ledger.length ? state.ledger[state.ledger.length - 1].ts : 0;
+    document.getElementById("priceSince").textContent =
+      "From starting price of " + fmt(state.startPrice) + " · " + (lastTs ? "Updated " + timeAgo(lastTs) : "No events yet");
+
+    var avail = availCoins();
+    var sold = soldCoins();
+    document.getElementById("statCirc").textContent = sold;
+    document.getElementById("statMcap").textContent = fmt(state.price * sold);
+    document.getElementById("statAth").textContent = fmt(state.ath);
+    document.getElementById("statAvail").textContent = avail;
+
+    var goal = CFG.goal || 1500000;
+    var gp = Math.min(100, state.earned / goal * 100).toFixed(1) + "%";
+    var ae = document.getElementById("adminEarned"); if (ae) ae.textContent = fmt(state.earned);
+    var as = document.getElementById("adminSold"); if (as) as.textContent = sold;
+    var ag = document.getElementById("adminGoal"); if (ag) ag.textContent = gp;
+    var ap = document.getElementById("aspPrice"); if (ap) ap.textContent = fmt(state.price);
+    var asl = document.getElementById("aspSold"); if (asl) asl.textContent = sold;
+    var aav = document.getElementById("aspAvail"); if (aav) aav.textContent = avail;
+    var aer = document.getElementById("aspEarned"); if (aer) aer.textContent = fmt(state.earned);
+    var agl = document.getElementById("aspGoal"); if (agl) agl.textContent = gp;
+    var aat = document.getElementById("aspAth"); if (aat) aat.textContent = fmt(state.ath);
+    var amc = document.getElementById("aspMcap"); if (amc) amc.textContent = fmt(state.price * sold);
+
+    renderOwners();
+    renderLedger();
+    renderTriggerList();
+    updateChart();
+    document.getElementById("chartSub").textContent =
+      state.ledger.length + " event" + (state.ledger.length !== 1 ? "s" : "") + " · " + CFG.name + " / Server Cash";
+  }
+
+  function renderOwners() {
+    var el = document.getElementById("ownersList");
+    var visible = state.owners.filter(function (o) { return o.qty > 0; });
+    if (!visible.length) { el.innerHTML = '<div class="empty-owners">No holders.</div>'; return; }
+    var sorted = visible.slice().sort(function (a, b) { return b.qty - a.qty; });
+    el.innerHTML = sorted.map(function (o, i) {
+      var c = COLORS[i % COLORS.length];
+      return '<div class="owner-row">' +
+        '<span class="owner-rank">#' + (i + 1) + '</span>' +
+        '<div class="owner-avatar" style="background:' + c[0] + ';color:' + c[1] + '">' + o.name.substring(0, 2).toUpperCase() + '</div>' +
+        '<span class="owner-name">' + o.name + '</span>' +
+        '<span class="owner-coins">' + o.qty + ' coin' + (o.qty !== 1 ? 's' : '') + '</span>' +
+        '<span class="owner-val">' + fmt(o.qty * state.price) + ' SC</span>' +
+        '</div>';
+    }).join("");
+  }
+
+  function renderLedger() {
+    var el = document.getElementById("ledgerBody");
+    if (!state.ledger.length) {
+      el.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No events logged yet.</td></tr>';
+      return;
+    }
+    el.innerHTML = state.ledger.slice().reverse().slice(0, 40).map(function (r, i) {
+      var n = state.ledger.length - i;
+      var cc = r.pct > 0 ? '<td class="g">▲ +' + r.pct + '%</td>' :
+               r.pct < 0 ? '<td class="r">▼ ' + r.pct + '%</td>' :
+               '<td style="color:var(--accent)">SALE</td>';
+      return '<tr><td style="color:var(--muted)">' + n + '</td><td class="hl">' + r.label + '</td>' +
+        cc + '<td class="hl">' + fmt(r.price) + '</td><td>' + (r.note || "—") + '</td><td>' + timeAgo(r.ts) + '</td></tr>';
+    }).join("");
+  }
+
+  function renderTriggerList() {
+    var el = document.getElementById("triggerList");
+    if (!state.triggers.length) {
+      el.innerHTML = '<div style="font-family:var(--mono);font-size:12px;color:var(--muted);text-align:center;padding:20px 0">No triggers set — add them in Admin → Settings.</div>';
+    } else {
+      var sorted = state.triggers.slice().sort(function (a, b) { return b.pct - a.pct; });
+      el.innerHTML = sorted.map(function (t) {
+        return '<div class="trigger-row"><span class="trigger-name">' + t.name + '</span>' +
+          '<span class="pct-badge ' + (t.pct >= 0 ? 'u' : 'd') + '">' + (t.pct > 0 ? '+' : '') + t.pct + '%</span></div>';
+      }).join("");
+    }
+    rebuildOptGroup();
+  }
+
+  function rebuildOptGroup() {
+    var og = document.getElementById("triggerOptGroup");
+    if (!og) return;
+    var sorted = state.triggers.slice().sort(function (a, b) { return b.pct - a.pct; });
+    og.innerHTML = sorted.map(function (t, i) {
+      return '<option value="trig_' + i + '">' + t.name + ' (' + (t.pct > 0 ? '+' : '') + t.pct + '%)</option>';
+    }).join("");
+  }
+
+  function renderTriggerEditor() {
+    var el = document.getElementById("triggerEditorList");
+    if (!state.triggers.length) {
+      el.innerHTML = '<div style="font-family:var(--mono);font-size:12px;color:var(--muted);padding:8px 0">No triggers yet — add one below.</div>';
+      return;
+    }
+    var sorted = state.triggers.slice().sort(function (a, b) { return b.pct - a.pct; });
+    el.innerHTML = sorted.map(function (t) {
+      var ri = state.triggers.indexOf(t);
+      return '<div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px">' +
+        '<span style="flex:1;font-size:13px;color:var(--text)">' + t.name + '</span>' +
+        '<span class="pct-badge ' + (t.pct >= 0 ? 'u' : 'd') + '">' + (t.pct > 0 ? '+' : '') + t.pct + '%</span>' +
+        '<button onclick="removeTrigger(' + ri + ')" style="background:rgba(255,77,106,0.1);color:var(--red);border:1px solid rgba(255,77,106,0.25);border-radius:6px;padding:3px 10px;font-family:var(--mono);font-size:11px;cursor:pointer">Remove</button>' +
+        '</div>';
+    }).join("");
+  }
+
+  function addTrigger() {
+    var name = document.getElementById("newTrigName").value.trim();
+    var dir = parseInt(document.getElementById("newTrigDir").value);
+    var pv = parseFloat(document.getElementById("newTrigPct").value);
+    if (!name) { showToast("Enter a trigger name"); return; }
+    if (!pv || pv <= 0 || pv > 99) { showToast("Enter a valid % (1–99)"); return; }
+    state.triggers.push({ name: name, pct: dir * pv });
+    save();
+    document.getElementById("newTrigName").value = "";
+    document.getElementById("newTrigPct").value = "";
+    renderTriggerList();
+    renderTriggerEditor();
+    showToast("Trigger added");
+  }
+
+  function removeTrigger(idx) {
+    state.triggers.splice(idx, 1);
+    save();
+    renderTriggerList();
+    renderTriggerEditor();
+    showToast("Trigger removed");
+  }
+
+  /* ── ADMIN ── */
+  function openAdmin() {
+    document.getElementById("overlay").classList.add("open");
+    document.getElementById("pinView").style.display = "";
+    document.getElementById("logView").style.display = "none";
+    document.getElementById("pinInput").value = "";
+    document.getElementById("pinError").style.display = "none";
+    setTimeout(function () { document.getElementById("pinInput").focus(); }, 100);
+  }
+
+  function closeAdmin() {
+    document.getElementById("overlay").classList.remove("open");
+  }
+
+  document.getElementById("overlay").addEventListener("click", function (e) {
+    if (e.target === this) closeAdmin();
+  });
+
+  function checkPin() {
+    var v = document.getElementById("pinInput").value;
+    if (v.length === 4) {
+      if (v === PIN) {
+        document.getElementById("pinView").style.display = "none";
+        document.getElementById("logView").style.display = "";
+        switchTab("log");
+      } else {
+        document.getElementById("pinError").style.display = "block";
+        document.getElementById("pinInput").value = "";
+      }
+    }
+  }
+
+  function switchTab(tab) {
+    var isLog = tab === "log";
+    document.getElementById("panelLog").style.display = isLog ? "" : "none";
+    document.getElementById("panelCfg").style.display = isLog ? "none" : "";
+    document.getElementById("tab-log").style.background = isLog ? "var(--surface)" : "transparent";
+    document.getElementById("tab-log").style.color = isLog ? "var(--text)" : "var(--muted2)";
+    document.getElementById("tab-cfg").style.background = isLog ? "transparent" : "var(--surface)";
+    document.getElementById("tab-cfg").style.color = isLog ? "var(--muted2)" : "var(--text)";
+    if (!isLog) {
+      document.getElementById("cfgName").value = CFG.name;
+      document.getElementById("cfgInitials").value = CFG.initials;
+      document.getElementById("cfgTagline").value = CFG.tagline;
+      document.getElementById("cfgStartPrice").value = CFG.startPrice;
+      document.getElementById("cfgGoal").value = CFG.goal;
+      document.getElementById("cfgFloor").value = CFG.floor;
+      renderTriggerEditor();
+    } else {
+      document.getElementById("evSelect").value = "sell";
+      onEvChange();
+      render();
+    }
+  }
+
+  function applySettings() {
+    CFG.name        = document.getElementById("cfgName").value.trim() || "TreeCoin";
+    CFG.initials    = document.getElementById("cfgInitials").value.trim().toUpperCase().substring(0, 2) || "TC";
+    CFG.tagline     = document.getElementById("cfgTagline").value.trim() || "Server Currency";
+    CFG.startPrice  = parseInt(document.getElementById("cfgStartPrice").value) || 300000;
+    CFG.goal        = parseInt(document.getElementById("cfgGoal").value) || 1500000;
+    CFG.floor       = parseInt(document.getElementById("cfgFloor").value) || 50000;
+    document.getElementById("hdrName").textContent = CFG.name;
+    document.getElementById("hdrMark").textContent = CFG.initials;
+    document.getElementById("hdrTagline").textContent = CFG.tagline;
+    document.title = CFG.name + " — Server Currency";
+    render();
+    showToast("Settings saved");
+  }
+
+  function onEvChange() {
+    var v = document.getElementById("evSelect").value;
+    document.getElementById("grpSell").style.display    = v === "sell"    ? "" : "none";
+    document.getElementById("grpPsp").style.display     = v === "psp"     ? "" : "none";
+    document.getElementById("grpP2p").style.display     = v === "p2p"     ? "" : "none";
+    document.getElementById("grpCustom").style.display  = v === "custom"  ? "" : "none";
+    document.getElementById("grpCodered").style.display = v === "codered" ? "" : "none";
+    document.getElementById("grpNote").style.display    = v.indexOf("trig_") === 0 ? "" : "none";
+    var btn = document.getElementById("submitBtn");
+    if (v === "codered") {
+      btn.textContent = "Execute Code Red";
+      btn.style.background = "var(--red)"; btn.style.borderColor = "var(--red)"; btn.style.color = "#fff";
+    } else {
+      btn.textContent = "Log Event";
+      btn.style.background = ""; btn.style.borderColor = ""; btn.style.color = "";
+    }
+  }
+
+  function applyPrice(newPrice, label, pct, note, ts, logIt) {
+    state.price = Math.max(CFG.floor, Math.round(newPrice));
+    if (state.price > state.ath) state.ath = state.price;
+    var timeStr = new Date(ts).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    state.priceHistory.push(state.price);
+    state.priceLabels.push(timeStr);
+    if (state.priceHistory.length > 60) { state.priceHistory.shift(); state.priceLabels.shift(); }
+    if (logIt) state.ledger.push({ label: label, pct: pct, price: state.price, note: note || "", ts: ts });
+  }
+
+  function submitEvent() {
+    var k = document.getElementById("evSelect").value;
+    var ts = Date.now();
+
+    if (k === "codered") {
+      var p = parseFloat(document.getElementById("codeRedPct").value);
+      if (!p || p <= 0 || p >= 100) { showToast("Enter a valid % (1-99)"); return; }
+      applyPrice(state.price * (1 - p / 100), "", 0, "", ts, false);
+      save(); render(); closeAdmin();
+      showToast("Code Red executed · Price now " + fmt(state.price));
+      return;
+    }
+
+    if (k === "custom") {
+      var lbl = document.getElementById("customLabel").value.trim();
+      var pv = parseFloat(document.getElementById("customPct").value);
+      var dir = parseInt(document.getElementById("customDir").value);
+      if (!lbl) { showToast("Enter a trigger name"); return; }
+      if (!pv || pv <= 0 || pv >= 100) { showToast("Enter a valid %"); return; }
+      var cp = dir * pv;
+      applyPrice(state.price * (1 + cp / 100), lbl, cp, "", ts, true);
+      save(); render(); closeAdmin();
+      showToast(lbl + " · Price now " + fmt(state.price));
+      return;
+    }
+
+    if (k === "sell") {
+      var buyer = document.getElementById("buyerInput").value.trim();
+      if (!buyer) { showToast("Enter buyer IGN"); return; }
+      var tree = treeOwner();
+      if (!tree || tree.qty < 1) { showToast("No coins available to sell"); return; }
+      tree.qty--;
+      var ex = state.owners.find(function (o) { return o.name.toLowerCase() === buyer.toLowerCase(); });
+      if (ex) { ex.qty++; } else { state.owners.push({ name: buyer, qty: 1 }); }
+      state.earned += state.price * 0.6;
+      applyPrice(state.price * 1.04, "Player buys — " + buyer, 4, buyer, ts, true);
+      save(); render(); closeAdmin();
+      showToast("Sold to " + buyer + " · Price now " + fmt(state.price));
+      return;
+    }
+
+    if (k === "psp") {
+      var player = document.getElementById("pspInput").value.trim();
+      if (!player) { showToast("Enter player IGN"); return; }
+      var holder = state.owners.find(function (o) { return o.name.toLowerCase() === player.toLowerCase(); });
+      if (!holder || holder.qty < 1) { showToast(player + " has no coins to sell back"); return; }
+      holder.qty--;
+      var tree2 = treeOwner();
+      if (tree2) { tree2.qty++; } else { state.owners.push({ name: "CertifiedTree", qty: 1 }); }
+      applyPrice(state.price * 0.95, "Player sells back — " + player, -5, player, ts, true);
+      save(); render(); closeAdmin();
+      showToast(player + " sold back · Price now " + fmt(state.price));
+      return;
+    }
+
+    if (k === "p2p") {
+      var seller = document.getElementById("p2pSeller").value.trim();
+      var p2pBuyer = document.getElementById("p2pBuyer").value.trim();
+      if (!seller) { showToast("Enter seller IGN"); return; }
+      if (!p2pBuyer) { showToast("Enter buyer IGN"); return; }
+      if (seller.toLowerCase() === p2pBuyer.toLowerCase()) { showToast("Seller and buyer can't be the same"); return; }
+      var sellerOwner = state.owners.find(function (o) { return o.name.toLowerCase() === seller.toLowerCase(); });
+      if (!sellerOwner || sellerOwner.qty < 1) { showToast(seller + " has no coins to sell"); return; }
+      sellerOwner.qty--;
+      var buyerOwner = state.owners.find(function (o) { return o.name.toLowerCase() === p2pBuyer.toLowerCase(); });
+      if (buyerOwner) { buyerOwner.qty++; } else { state.owners.push({ name: p2pBuyer, qty: 1 }); }
+      applyPrice(state.price * 0.999, "P2P — " + seller + " → " + p2pBuyer, -0.1, seller + " → " + p2pBuyer, ts, true);
+      save(); render(); closeAdmin();
+      showToast(seller + " sold to " + p2pBuyer + " · Price now " + fmt(state.price));
+      return;
+    }
+
+    if (k.indexOf("trig_") === 0) {
+      var idx = parseInt(k.replace("trig_", ""));
+      var sorted = state.triggers.slice().sort(function (a, b) { return b.pct - a.pct; });
+      var trig = sorted[idx];
+      if (!trig) { showToast("Trigger not found"); return; }
+      var note = document.getElementById("noteInput").value.trim();
+      applyPrice(state.price * (1 + trig.pct / 100), trig.name, trig.pct, note, ts, true);
+      save(); render(); closeAdmin();
+      showToast(trig.name + " · Price now " + fmt(state.price));
+    }
+  }
+
+  function confirmWipe() {
+    if (!confirm("ALL WIPE — deletes all owners & events, resets price to " + fmt(CFG.startPrice) + ".\n\nCannot be undone.")) return;
+    if (!confirm("Last chance. Wipe everything?")) return;
+    var trigs = state.triggers;
+    state = freshState();
+    state.triggers = trigs;
+    save();
+    chart.data.labels = state.priceLabels;
+    chart.data.datasets[0].data = state.priceHistory;
+    chart.update("none");
+    render();
+    closeAdmin();
+    showToast("All data wiped · Price reset to " + fmt(CFG.startPrice));
+  }
+
+  function showToast(msg) {
+    var t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(function () { t.classList.remove("show"); }, 2800);
+  }
+
+  function timeAgo(ts) {
+    var d = Date.now() - ts, m = Math.floor(d / 60000);
+    if (m < 1) return "just now";
+    if (m < 60) return m + "m ago";
+    var h = Math.floor(m / 60);
+    if (h < 24) return h + "h ago";
+    return Math.floor(h / 24) + "d ago";
+  }
+
+  setInterval(function () {
+    if (state.ledger.length) {
+      document.getElementById("priceSince").textContent =
+        "From starting price of " + fmt(CFG.startPrice) + " · Updated " + timeAgo(state.ledger[state.ledger.length - 1].ts);
+      renderLedger();
+    }
+  }, 30000);
+
+  window.openAdmin      = openAdmin;
+  window.closeAdmin     = closeAdmin;
+  window.checkPin       = checkPin;
+  window.switchTab      = switchTab;
+  window.onEvChange     = onEvChange;
+  window.submitEvent    = submitEvent;
+  window.confirmWipe    = confirmWipe;
+  window.applySettings  = applySettings;
+  window.addTrigger     = addTrigger;
+  window.removeTrigger  = removeTrigger;
+
+  initChart();
+  render();
+}());
+</script>
+</body>
+</html>
